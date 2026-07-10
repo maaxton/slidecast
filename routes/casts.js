@@ -1,14 +1,36 @@
 import crypto from 'crypto';
 import { existsSync, readdirSync, readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve, dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 import JSZip from 'jszip';
 import {
   formatCast, resolveCast, createDefaultDefinition, generateUuid,
 } from '../utils/castUtils.js';
+import { findSecretFields, stripSecretsForSave } from '../widgets/secretConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+/**
+ * Lazily reach the kernel GrantStore (secrets one-stop-shop Task 6) to auto-record
+ * a widget's read-grant for a shared secret picked in the Studio. An extension
+ * cannot static-import core `backend/src/...`, so — exactly like WidgetSecretStore
+ * reaches the kernel secretsAccessor — we import GrantStore by a cwd-absolute path
+ * (process.cwd() is always the backend dir) and instantiate it against the same
+ * core `extension_grants` table (default core queryFn). Memoized per module load.
+ */
+let _grantStorePromise = null;
+function getGrantStore() {
+  if (!_grantStorePromise) {
+    _grantStorePromise = (async () => {
+      const abs = join(process.cwd(), 'src', 'sdk', 'isolation', 'GrantStore.js');
+      const mod = await import(pathToFileURL(abs).href);
+      const GrantStoreClass = mod.GrantStore || mod.default;
+      return new GrantStoreClass();
+    })();
+  }
+  return _grantStorePromise;
+}
 
 /**
  * Load seed cast names from the seed-casts directory at module load time.
@@ -50,8 +72,104 @@ const seedCastNamesPromise = loadSeedCastNames();
  */
 export default function createCastRoutes(deps) {
   const {
-    previewManager, widgetRegistry, widgetRuntime, slideImageRenderer, renderTracker, logger, eventBus,
+    previewManager, widgetRegistry, widgetRuntime, slideImageRenderer, renderTracker, logger, eventBus, widgetSecrets,
   } = deps;
+
+  /**
+   * Cast-save secret intercept (secrets one-stop-shop Task 6). Walks the cast
+   * definition and, for every widget element, moves any secret-typed config
+   * value OUT of the definition and INTO the encrypted system store, leaving only
+   * `{$secret}` references behind — so the persisted definition NEVER contains a
+   * plaintext secret. Two modes per secret field:
+   *   - a raw entered string → stored under `widget:<wid>:<elementId>:<field>`,
+   *     replaced with `{$secret:'widget:<wid>:<elementId>:<field>'}`;
+   *   - a Studio picker marker `{$secretSharedPick:'<name>'}` → converted to
+   *     `{$secret:'shared:<name>'}` (no store write — the value already lives in
+   *     the shared keyring) AND the widget's read-grant for `<name>` is recorded.
+   * Mutates + returns `definition` (same object). Throws if a store write fails —
+   * failing the save is correct: better than persisting plaintext.
+   */
+  async function stripSecretsFromDefinition(definition) {
+    if (!definition || typeof definition !== 'object' || !widgetRegistry) return definition;
+
+    let widgetsByUuid = null;
+    const ensureWidgets = async () => {
+      if (widgetsByUuid) return widgetsByUuid;
+      widgetsByUuid = new Map();
+      try {
+        for (const w of await widgetRegistry.getAll()) widgetsByUuid.set(w.uuid, w);
+      } catch (err) {
+        logger.warn(`Secret intercept: failed to load widget registry: ${err.message}`);
+      }
+      return widgetsByUuid;
+    };
+
+    const sharedGrantsByWid = new Map(); // wid -> Set(shared secret names)
+
+    const walkElements = async (elements) => {
+      for (const element of elements || []) {
+        if (element.type !== 'widget' || !element.widgetUuid) continue;
+        const map = await ensureWidgets();
+        const widget = map.get(element.widgetUuid);
+        const schema = widget && widget.configSchema;
+        const secretFields = findSecretFields(schema);
+        if (secretFields.length === 0) continue;
+
+        const wid = element.widgetUuid;
+        const elementId = element.id;
+        const config = { ...(element.widgetConfig || {}) };
+
+        // 1) Convert Studio picker markers → shared refs + collect read-grants.
+        for (const field of secretFields) {
+          const val = config[field];
+          if (val && typeof val === 'object' && typeof val.$secretSharedPick === 'string') {
+            const name = val.$secretSharedPick;
+            config[field] = { $secret: `shared:${name}` };
+            if (!sharedGrantsByWid.has(wid)) sharedGrantsByWid.set(wid, new Set());
+            sharedGrantsByWid.get(wid).add(name);
+          }
+        }
+
+        // 2) Strip entered plaintext → store writes + widget-scoped refs.
+        const { config: stripped, writes } = stripSecretsForSave({
+          schema, config, wid, elementId,
+        });
+        for (const { key, value } of writes) {
+          if (!widgetSecrets) {
+            throw new Error('widget secret store unavailable — cannot store secret config');
+          }
+          await widgetSecrets.setRaw(wid, key, value);
+        }
+        element.widgetConfig = stripped;
+      }
+    };
+
+    for (const group of definition.groups || []) {
+      for (const slide of group.slides || []) await walkElements(slide.elements);
+    }
+    // Tolerate a flat top-level slides[] shape too.
+    for (const slide of definition.slides || []) await walkElements(slide.elements);
+
+    // 3) Auto-record shared read-grants (merge — never clobber existing grants).
+    if (sharedGrantsByWid.size > 0) {
+      try {
+        const grantStore = await getGrantStore();
+        for (const [wid, names] of sharedGrantsByWid) {
+          const grantName = `widget:${wid}`;
+          const existing = await grantStore.getGrantedGrants(grantName);
+          const merged = {
+            ...existing,
+            secrets: Array.from(new Set([...(existing.secrets || []), ...names])),
+          };
+          await grantStore.setGrantedGrants(grantName, merged, 'studio-auto');
+        }
+      } catch (err) {
+        logger.warn(`Secret intercept: failed to record shared read-grant: ${err.message}`);
+      }
+    }
+
+    return definition;
+  }
 
   /**
    * Generate a hash for a slide definition (for change detection)
@@ -318,11 +436,14 @@ export default function createCastRoutes(deps) {
     'POST /casts': async (ctx) => {
       const { body } = ctx;
       const now = new Date().toISOString();
+      // Strip secret-typed widget config into the encrypted store BEFORE persist
+      // (Task 6) — the stored definition holds only {$secret} references.
+      const definition = await stripSecretsFromDefinition(body.definition || createDefaultDefinition());
       const row = await ctx.data.slidecast_casts.create({
         uuid: generateUuid(),
         name: body.name || 'Untitled Cast',
         description: body.description || '',
-        definition: JSON.stringify(body.definition || createDefaultDefinition()),
+        definition: JSON.stringify(definition),
         thumbnail: body.thumbnail || null,
         created_at: now,
         updated_at: now,
@@ -346,7 +467,12 @@ export default function createCastRoutes(deps) {
       const updateData = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.description !== undefined) updateData.description = body.description;
-      if (body.definition !== undefined) updateData.definition = JSON.stringify(body.definition);
+      if (body.definition !== undefined) {
+        // Strip secret-typed widget config into the encrypted store BEFORE
+        // persist (Task 6) — stored definition holds only {$secret} references.
+        const definition = await stripSecretsFromDefinition(body.definition);
+        updateData.definition = JSON.stringify(definition);
+      }
       if (body.thumbnail !== undefined) updateData.thumbnail = body.thumbnail;
       updateData.updated_at = new Date().toISOString();
 

@@ -17,6 +17,7 @@ class WidgetRegistry {
     this.MAX_VERSIONS = 5;
     this.imageRenderer = null;
     this.runtime = null;
+    this.secretStore = null;
   }
 
   async init() {
@@ -38,6 +39,14 @@ class WidgetRegistry {
    */
   setRuntime(runtime) {
     this.runtime = runtime;
+  }
+
+  /**
+   * Set the widget secret store (WidgetSecretStore) — used to wipe a widget's
+   * secrets from the ONE system store on removal (secrets one-stop-shop Task 5).
+   */
+  setSecretStore(secretStore) {
+    this.secretStore = secretStore;
   }
 
   /**
@@ -390,12 +399,15 @@ class WidgetRegistry {
       logger.warn(`Failed to clean up widget storage: ${err.message}`);
     }
 
-    // Delete widget secrets
+    // Delete widget secrets from the ONE system store (secrets one-stop-shop
+    // Task 5): wipe the whole `widget:<uuid>:` namespace in a single audited
+    // bulk delete via the kernel accessor (WidgetSecretStore.deleteAll).
     try {
-      const secretsModel = this.api.model('slidecast_widget_secrets');
-      const secrets = await secretsModel.findAll({ where: { widget_uuid: uuid } });
-      for (const secret of secrets) {
-        await secretsModel.delete(secret.id);
+      if (this.secretStore) {
+        const removed = await this.secretStore.deleteAll(uuid);
+        if (removed > 0) logger.debug(`Deleted ${removed} secrets for widget: ${existing.name}`);
+      } else {
+        logger.warn('WidgetRegistry has no secret store wired — skipping secret cleanup on widget removal');
       }
     } catch (err) {
       logger.warn(`Failed to clean up widget secrets: ${err.message}`);

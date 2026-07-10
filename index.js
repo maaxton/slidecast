@@ -97,7 +97,7 @@ async function importExtensionSubmodules(ctx) {
     loggerMod,
     CastManagerMod, ScreenManagerMod, MediaLibraryMod, PreviewManagerMod, PairingManagerMod,
     WidgetRegistryMod, WidgetRuntimeMod, WidgetImageRendererMod, WidgetCacheMod,
-    WidgetSecretsMod, WidgetEventStoreMod, WidgetResolverMod,
+    WidgetSecretStoreMod, WidgetEventStoreMod, WidgetResolverMod,
     SlideImageRendererMod, RenderBridgeMod, VideoProcessorMod, SSDPDiscoveryMod,
     RenderTrackerMod, WidgetRefreshServiceMod, ScreenWatchdogServiceMod, UpdateTrackerMod, SpriteSheetGeneratorMod,
     castsMod, protocolMod, settingsMod, templatesMod, autoLaunchMod,
@@ -115,7 +115,7 @@ async function importExtensionSubmodules(ctx) {
     import(url('widgets/WidgetRuntime.js')),
     import(url('widgets/WidgetImageRenderer.js')),
     import(url('widgets/WidgetCache.js')),
-    import(url('widgets/WidgetSecrets.js')),
+    import(url('widgets/WidgetSecretStore.js')),
     import(url('widgets/WidgetEventStore.js')),
     import(url('widgets/WidgetResolver.js')),
     import(url('SlideImageRenderer.js')),
@@ -156,7 +156,7 @@ async function importExtensionSubmodules(ctx) {
     WidgetRuntime: WidgetRuntimeMod.default,
     WidgetImageRenderer: WidgetImageRendererMod.default,
     WidgetCache: WidgetCacheMod.default,
-    WidgetSecrets: WidgetSecretsMod.default,
+    WidgetSecretStore: WidgetSecretStoreMod.default,
     WidgetEventStore: WidgetEventStoreMod.default,
     WidgetResolver: WidgetResolverMod.default,
     SlideImageRenderer: SlideImageRendererMod.default,
@@ -692,14 +692,11 @@ export default {
         assets_snapshot: 'json',
       },
     },
-    slidecast_widget_secrets: {
-      table: 'slidecast_widget_secrets', // use v1 table name (no prefix)
-      fields: {
-        widget_uuid: 'string:required',
-        key_name: 'string:required',
-        encrypted_value: 'string:required',
-      },
-    },
+    // slidecast_widget_secrets DELETED (secrets one-stop-shop Wave 2, Task 5):
+    // widget secrets now live in the ONE system store (system_secrets, owner
+    // `widget:<wid>`, one host key, audited) reached via WidgetSecretStore.
+    // Pre-launch: no migration. The loader never DROPs tables, so a stale
+    // slidecast_widget_secrets table on an existing dev box is inert.
     slidecast_widget_cache: {
       table: 'slidecast_widget_cache', // use v1 table name (no prefix)
       fields: {
@@ -1058,7 +1055,7 @@ export default {
       logger,
       CastManager, ScreenManager, MediaLibrary, PreviewManager, PairingManager,
       WidgetRegistry, WidgetRuntime, WidgetImageRenderer, WidgetCache,
-      WidgetSecrets, WidgetEventStore, WidgetResolver,
+      WidgetSecretStore, WidgetEventStore, WidgetResolver,
       SlideImageRenderer, getGpuStatus, RenderBridge, VideoProcessor, SSDPDiscovery,
       RenderTracker, WidgetRefreshService, ScreenWatchdogService, UpdateTracker, UpdateTypes, SpriteSheetGenerator,
       createCastRoutes, createProtocolRoutes, createSettingsRoutes, createTemplateRoutes,
@@ -1158,7 +1155,7 @@ export default {
     const widgetRuntime = new WidgetRuntime(api);
     const widgetImageRenderer = new WidgetImageRenderer(api);
     const widgetCache = new WidgetCache(api);
-    const widgetSecrets = new WidgetSecrets(api);
+    const widgetSecrets = new WidgetSecretStore();
     const widgetEventStore = new WidgetEventStore(api);
 
     await widgetRegistry.init();
@@ -1382,6 +1379,7 @@ export default {
     // Wire up cross-references
     widgetRegistry.setImageRenderer(widgetImageRenderer);
     widgetRegistry.setRuntime(widgetRuntime);
+    widgetRegistry.setSecretStore(widgetSecrets); // widget-removal secret teardown (Task 5)
     widgetRuntime.setEventStore(widgetEventStore);
     widgetRuntime.setSecrets(widgetSecrets);
 
@@ -1441,6 +1439,7 @@ export default {
       renderTracker,
       logger,
       eventBus: api.globalEventBus || null,
+      widgetSecrets, // Task 6: cast-save secret intercept writes to the system store
     });
     ctx.registerRoutes(castRoutes);
 

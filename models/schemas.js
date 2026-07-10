@@ -162,18 +162,10 @@ export const MODEL_SCHEMAS = {
     jsonFields: ['config_schema', 'style_schema', 'table_schema', 'db_snapshot', 'assets_snapshot'],
     dateFields: ['created_at'],
   },
-  widget_secrets: {
-    tableName: 'slidecast_widget_secrets',
-    description: 'Encrypted widget secrets (API keys)',
-    fields: {
-      id: { type: 'integer', primaryKey: true, autoIncrement: true },
-      widget_uuid: { type: 'string', required: true },
-      key_name: { type: 'string', required: true },
-      encrypted_value: { type: 'string', required: true },
-      created_at: { type: 'datetime', default: 'CURRENT_TIMESTAMP' },
-    },
-    dateFields: ['created_at'],
-  },
+  // widget_secrets (slidecast_widget_secrets) DELETED — secrets one-stop-shop
+  // Wave 2, Task 5. Widget secrets now live in the ONE system store
+  // (system_secrets), reached via WidgetSecretStore. (This schemas.js file is
+  // reference-only; it is not imported for table creation.)
   widget_cache: {
     tableName: 'slidecast_widget_cache',
     description: 'Widget render cache metadata',

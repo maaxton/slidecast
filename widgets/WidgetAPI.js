@@ -45,7 +45,7 @@ class WidgetAPI {
   }
 
   /**
-   * Set the already-initialized WidgetSecrets singleton (called by WidgetRuntime)
+   * Set the already-initialized WidgetSecretStore singleton (called by WidgetRuntime)
    */
   setSecrets(secrets) {
     this.secrets = secrets;
@@ -1491,9 +1491,10 @@ class WidgetAPI {
           // Prefer the already-initialized singleton injected by WidgetRuntime
           let { secrets } = self;
           if (!secrets) {
-            // Fallback: import WidgetSecrets dynamically to avoid circular deps
-            const { default: WidgetSecrets } = await import('./WidgetSecrets.js');
-            secrets = new WidgetSecrets(self.extensionApi);
+            // Fallback: build a WidgetSecretStore on demand (reaches the ONE
+            // system secret store via the kernel accessor singleton).
+            const { default: WidgetSecretStore } = await import('./WidgetSecretStore.js');
+            secrets = new WidgetSecretStore();
             await secrets.init();
           }
           return await secrets.getDecrypted(self.widgetUuid, keyName);

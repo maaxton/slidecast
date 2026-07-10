@@ -26,9 +26,75 @@
     }
   }
   
+  // ---- Secret-typed config fields (Task 6) ----
+  // Names of SHARED system secrets, for the "use shared key" picker. Names ONLY —
+  // the list route never returns a value.
+  let sharedSecretNames = [];
+  // Per-field UI mode: 'enter' (type a value) | 'shared' (pick a shared key).
+  let secretMode = {};
+
+  async function loadSharedSecretNames() {
+    try {
+      const res = await fetch('/api/extensions/system/secrets', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      sharedSecretNames = (data.secrets || []).filter((s) => s.shared).map((s) => s.key);
+    } catch {
+      sharedSecretNames = [];
+    }
+  }
+
+  function isSecretRef(v) {
+    return !!v && typeof v === 'object' && typeof v.$secret === 'string';
+  }
+  function isSharedRef(v) {
+    return isSecretRef(v) && v.$secret.startsWith('shared:');
+  }
+  function isSharedPick(v) {
+    return !!v && typeof v === 'object' && typeof v.$secretSharedPick === 'string';
+  }
+  function sharedNameOf(v) {
+    if (isSharedRef(v)) return v.$secret.slice('shared:'.length);
+    if (isSharedPick(v)) return v.$secretSharedPick;
+    return '';
+  }
+  // A value/reference is currently stored (widget-scoped or shared).
+  function secretIsSet(v) {
+    return isSecretRef(v);
+  }
+  // Initialise a field's mode from its current value (shared ref/pick => 'shared').
+  function secretModeFor(key) {
+    if (secretMode[key]) return secretMode[key];
+    const v = element.widgetConfig[key];
+    secretMode[key] = (isSharedRef(v) || isSharedPick(v)) ? 'shared' : 'enter';
+    return secretMode[key];
+  }
+  function setSecretMode(key, mode) {
+    secretMode[key] = mode;
+    secretMode = { ...secretMode };
+  }
+  function onSecretInput(key, raw) {
+    // Emit the raw string only on real input — stripped to a {$secret} ref at
+    // save. Empty input is a no-op so it never wipes an existing reference.
+    if (raw === '') return;
+    element.widgetConfig[key] = raw;
+    onConfigChange();
+  }
+  function onSecretClear(key) {
+    element.widgetConfig[key] = '';
+    onConfigChange();
+    scheduleAutoRun();
+  }
+  function onSharedPick(key, name) {
+    element.widgetConfig[key] = name ? { $secretSharedPick: name } : '';
+    onConfigChange();
+    scheduleAutoRun();
+  }
+
   onMount(() => {
-    debugLog('widget.config', 'open', { 
-      widgetName: widget?.name, 
+    loadSharedSecretNames();
+    debugLog('widget.config', 'open', {
+      widgetName: widget?.name,
       elementId: element?.id,
       hasStyleSchema: !!widget?.styleSchema,
       styleSchemaKeys: widget?.styleSchema ? Object.keys(widget.styleSchema) : [],
@@ -401,6 +467,36 @@
                     </div>
                   {:else if schema.type === 'entity'}
                     <input type="text" placeholder="entity_id" bind:value={element.widgetConfig[key]} on:input={() => { onConfigChange(); scheduleAutoRun(); }} />
+                  {:else if schema.type === 'secret'}
+                    {@const secMode = secretModeFor(key)}
+                    {@const curVal = element.widgetConfig[key]}
+                    <div class="secret-field">
+                      <div class="secret-mode-toggle">
+                        <button type="button" class="secret-mode-btn" class:active={secMode === 'enter'} on:click={() => setSecretMode(key, 'enter')}>Enter value</button>
+                        <button type="button" class="secret-mode-btn" class:active={secMode === 'shared'} on:click={() => setSecretMode(key, 'shared')}>Use shared key</button>
+                      </div>
+                      {#if secMode === 'enter'}
+                        {#if secretIsSet(curVal)}
+                          <div class="secret-set-row">
+                            <span class="secret-set-badge">•••• set</span>
+                            <button type="button" class="secret-clear-btn" on:click={() => onSecretClear(key)}>Clear</button>
+                          </div>
+                          <input type="password" autocomplete="new-password" placeholder="Enter a new value to replace" on:input={(e) => onSecretInput(key, e.target.value)} />
+                        {:else}
+                          <input type="password" autocomplete="new-password" placeholder="Enter secret value" on:input={(e) => onSecretInput(key, e.target.value)} />
+                        {/if}
+                      {:else}
+                        <select value={sharedNameOf(curVal)} on:change={(e) => onSharedPick(key, e.target.value)}>
+                          <option value="">— Select a shared key —</option>
+                          {#each sharedSecretNames as name}
+                            <option value={name}>{name}</option>
+                          {/each}
+                        </select>
+                        {#if sharedSecretNames.length === 0}
+                          <span class="field-hint">No shared keys available. Add one in Settings → Secrets.</span>
+                        {/if}
+                      {/if}
+                    </div>
                   {:else}
                     <input type="text" bind:value={element.widgetConfig[key]} on:input={() => { onConfigChange(); scheduleAutoRun(); }} />
                   {/if}
@@ -569,6 +665,71 @@
 </div>
 
 <style>
+  /* Secret-typed config field (Task 6) */
+  .secret-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .secret-mode-toggle {
+    display: flex;
+    gap: 4px;
+  }
+
+  .secret-mode-btn {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .secret-mode-btn:hover {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .secret-mode-btn.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgb(99, 102, 241);
+    color: white;
+  }
+
+  .secret-set-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .secret-set-badge {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgb(34, 197, 94);
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    border-radius: 4px;
+    padding: 2px 8px;
+  }
+
+  .secret-clear-btn {
+    font-size: 11px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+
+  .secret-clear-btn:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
   .style-group {
     margin-bottom: 16px;
   }

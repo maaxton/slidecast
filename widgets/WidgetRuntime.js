@@ -8,6 +8,7 @@
 import { fileURLToPath, pathToFileURL } from 'url';
 import path from 'path';
 import logger from '../utils/Logger.js';
+import { resolveSecretRefs } from './secretConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +20,7 @@ class WidgetRuntime {
     this.compiledWidgets = new Map(); // Cache compiled widget functions
     this.WidgetAPIClass = null; // Will be dynamically imported
     this.eventStore = null; // Widget event store reference
-    this.secrets = null; // Widget secrets singleton reference
+    this.secrets = null; // WidgetSecretStore singleton reference
   }
 
   /**
@@ -30,7 +31,7 @@ class WidgetRuntime {
   }
 
   /**
-   * Set the already-initialized WidgetSecrets singleton for widgets to use
+   * Set the already-initialized WidgetSecretStore singleton for widgets to use
    */
   setSecrets(secrets) {
     this.secrets = secrets;
@@ -93,8 +94,21 @@ class WidgetRuntime {
     }
 
     try {
+      // Resolve any `{$secret}` config references to their live decrypted values
+      // BEFORE merging defaults (secrets one-stop-shop Task 6). Refs are only
+      // ever present in `config` (secret-typed fields stripped at cast-save), so
+      // the getter fires solely for those; plain configs pass straight through.
+      // The kernel accessor `get` is owner-agnostic, so a `shared:`-stripped name
+      // and a `widget:<wid>:...` key both resolve here.
+      const resolvedConfig = await resolveSecretRefs(
+        config,
+        (k) => (this.secrets
+          ? this.secrets.getRaw(widget.uuid, k)
+          : Promise.reject(new Error('widget secret store unavailable'))),
+      );
+
       // Merge default config/styles from schemas
-      const mergedConfig = this.mergeWithDefaults(config, widget.configSchema);
+      const mergedConfig = this.mergeWithDefaults(resolvedConfig, widget.configSchema);
       const mergedStyles = this.mergeWithDefaults(styles, widget.styleSchema);
 
       // Determine which code path to use
