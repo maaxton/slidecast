@@ -1,0 +1,21 @@
+{
+  "name": "slidecast",
+  "displayName": "Slidecast",
+  "description": "Digital-signage slidecast player — renders slides to TVs. Uses the baked Chromium runtime.",
+  "category": "Signage",
+  "recommended": false,
+  "hidden": false,
+  "uninstallable": true,
+  "provides": [
+    "slidecast",
+    "digital-signage"
+  ],
+  "requires": [],
+  "requiresImageDeps": [
+    "chromium",
+    "fonts"
+  ],
+  "minCoreVersion": "0.0.0",
+  "author": "Waiveo",
+  "license": "MIT"
+}

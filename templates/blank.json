@@ -1,0 +1,43 @@
+{
+  "name": "Blank Canvas",
+  "description": "Start from scratch with an empty canvas",
+  "author": "Waiveo",
+  "thumbnail": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'%3E%3Crect fill='%231e293b' width='320' height='180'/%3E%3Crect fill='%23334155' x='130' y='65' width='60' height='50' rx='4'/%3E%3Cline x1='160' y1='75' x2='160' y2='105' stroke='%2394a3b8' stroke-width='2'/%3E%3Cline x1='145' y1='90' x2='175' y2='90' stroke='%2394a3b8' stroke-width='2'/%3E%3Ctext x='160' y='140' fill='%2394a3b8' font-size='12' text-anchor='middle' font-family='system-ui'>Blank Canvas</text%3E%3C/svg%3E",
+  "cast": {
+    "settings": {
+      "width": 1920,
+      "height": 1080,
+      "transition": {
+        "type": "fade",
+        "duration": 500
+      }
+    },
+    "groups": [
+      {
+        "id": "group-1",
+        "name": "Main",
+        "settings": {},
+        "slides": [
+          {
+            "id": "slide-1",
+            "name": "Slide 1",
+            "duration": 10000,
+            "elements": [
+              {
+                "id": "el-bg",
+                "type": "shape",
+                "shape": "rectangle",
+                "position": { "x": 0, "y": 0 },
+                "size": { "width": 1920, "height": 1080 },
+                "zIndex": 0,
+                "style": {
+                  "fill": "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

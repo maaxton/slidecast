@@ -1,0 +1,258 @@
+{
+  "name": "Widget Showcase",
+  "description": "Sample slide demonstrating all 7 built-in widgets - use this to verify widgets are working correctly",
+  "author": "Waiveo",
+  "thumbnail": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'%3E%3Crect fill='%230d0d14' width='320' height='180'/%3E%3Crect fill='%23667eea' opacity='0.1' x='10' y='10' width='90' height='50' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='110' y='10' width='90' height='50' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='210' y='10' width='100' height='50' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='10' y='70' width='145' height='50' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='165' y='70' width='145' height='50' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='10' y='130' width='90' height='40' rx='4'/%3E%3Crect fill='%23667eea' opacity='0.1' x='110' y='130' width='200' height='40' rx='4'/%3E%3Ctext x='160' y='100' fill='%23667eea' font-size='9' text-anchor='middle' font-family='system-ui'>Widget Showcase</text%3E%3C/svg%3E",
+  "cast": {
+    "settings": {
+      "width": 1920,
+      "height": 1080,
+      "transition": {
+        "type": "fade",
+        "duration": 500
+      }
+    },
+    "groups": [
+      {
+        "id": "showcase-group",
+        "name": "Widget Showcase",
+        "settings": {},
+        "slides": [
+          {
+            "id": "showcase-slide",
+            "name": "All Widgets",
+            "duration": 30000,
+            "elements": [
+              {
+                "id": "showcase-bg",
+                "type": "shape",
+                "shape": "rectangle",
+                "position": { "x": 0, "y": 0 },
+                "size": { "width": 1920, "height": 1080 },
+                "zIndex": 0,
+                "style": {
+                  "fill": "linear-gradient(135deg, #0d0d14 0%, #1a1a2e 50%, #0f172a 100%)"
+                }
+              },
+              {
+                "id": "showcase-title",
+                "type": "text",
+                "content": "Widget Showcase",
+                "position": { "x": 60, "y": 30 },
+                "size": { "width": 400, "height": 50 },
+                "zIndex": 1,
+                "style": {
+                  "fontSize": 36,
+                  "fontWeight": "bold",
+                  "color": "#ffffff",
+                  "fontFamily": "Inter"
+                }
+              },
+              {
+                "id": "showcase-subtitle",
+                "type": "text",
+                "content": "Testing all 7 built-in widgets",
+                "position": { "x": 60, "y": 80 },
+                "size": { "width": 400, "height": 30 },
+                "zIndex": 1,
+                "style": {
+                  "fontSize": 18,
+                  "color": "rgba(255,255,255,0.6)",
+                  "fontFamily": "Inter"
+                }
+              },
+              {
+                "id": "widget-clock",
+                "type": "widget",
+                "widgetUuid": "seed-widget-digital-clock-001",
+                "position": { "x": 60, "y": 140 },
+                "size": { "width": 400, "height": 120 },
+                "zIndex": 10,
+                "config": {
+                  "showSeconds": true,
+                  "use24Hour": false,
+                  "showAmPm": true
+                },
+                "styles": {
+                  "fontSize": 64,
+                  "fontFamily": "Inter",
+                  "fontWeight": "bold",
+                  "textColor": "#ffffff",
+                  "backgroundColor": "transparent"
+                }
+              },
+              {
+                "id": "widget-date",
+                "type": "widget",
+                "widgetUuid": "seed-widget-date-display-0002",
+                "position": { "x": 60, "y": 280 },
+                "size": { "width": 500, "height": 80 },
+                "zIndex": 10,
+                "config": {
+                  "format": "full",
+                  "showYear": true,
+                  "showWeekday": true
+                },
+                "styles": {
+                  "fontSize": 28,
+                  "fontFamily": "Inter",
+                  "textColor": "#a78bfa",
+                  "backgroundColor": "transparent"
+                }
+              },
+              {
+                "id": "widget-weather",
+                "type": "widget",
+                "widgetUuid": "seed-widget-current-weather04",
+                "position": { "x": 60, "y": 400 },
+                "size": { "width": 420, "height": 220 },
+                "zIndex": 10,
+                "config": {
+                  "locationMode": "zip",
+                  "zipCode": "10001",
+                  "units": "fahrenheit",
+                  "showLocation": true,
+                  "showCondition": true,
+                  "showFeelsLike": true,
+                  "showHumidity": true,
+                  "showIcon": true
+                },
+                "styles": {
+                  "theme": "ocean",
+                  "backgroundOpacity": 100,
+                  "temperatureSize": 80,
+                  "borderRadius": 28
+                }
+              },
+              {
+                "id": "widget-countdown",
+                "type": "widget",
+                "widgetUuid": "seed-widget-countdown-timer003",
+                "position": { "x": 60, "y": 660 },
+                "size": { "width": 500, "height": 120 },
+                "zIndex": 10,
+                "config": {
+                  "targetDate": "2026-12-31T23:59:59",
+                  "eventName": "New Year 2027",
+                  "showDays": true,
+                  "showHours": true,
+                  "showMinutes": true,
+                  "showSeconds": true
+                },
+                "styles": {
+                  "fontSize": 48,
+                  "fontFamily": "Inter",
+                  "textColor": "#fbbf24",
+                  "labelColor": "#94a3b8"
+                }
+              },
+              {
+                "id": "widget-text",
+                "type": "widget",
+                "widgetUuid": "seed-widget-text-block-00005",
+                "position": { "x": 60, "y": 820 },
+                "size": { "width": 500, "height": 80 },
+                "zIndex": 10,
+                "config": {
+                  "text": "Welcome to Waiveo Slidecast!",
+                  "marquee": false
+                },
+                "styles": {
+                  "fontSize": 24,
+                  "fontFamily": "Inter",
+                  "fontWeight": "500",
+                  "textColor": "#22c55e",
+                  "backgroundColor": "transparent"
+                }
+              },
+              {
+                "id": "widget-quote",
+                "type": "widget",
+                "widgetUuid": "seed-widget-quote-of-day-0007",
+                "position": { "x": 600, "y": 140 },
+                "size": { "width": 700, "height": 300 },
+                "zIndex": 10,
+                "config": {
+                  "showAuthor": true,
+                  "showCategory": true
+                },
+                "styles": {
+                  "quoteFontSize": 28,
+                  "authorFontSize": 18,
+                  "quoteColor": "#e2e8f0",
+                  "authorColor": "#94a3b8",
+                  "fontFamily": "Merriweather",
+                  "backgroundColor": "rgba(255,255,255,0.05)",
+                  "borderRadius": 16,
+                  "padding": 32
+                }
+              },
+              {
+                "id": "widget-label",
+                "type": "text",
+                "content": "Digital Clock →",
+                "position": { "x": 500, "y": 185 },
+                "size": { "width": 150, "height": 30 },
+                "zIndex": 5,
+                "style": {
+                  "fontSize": 12,
+                  "color": "rgba(255,255,255,0.3)",
+                  "fontFamily": "Inter"
+                }
+              },
+              {
+                "id": "widget-label-2",
+                "type": "text",
+                "content": "← Quote of the Day",
+                "position": { "x": 1100, "y": 460 },
+                "size": { "width": 200, "height": 30 },
+                "zIndex": 5,
+                "style": {
+                  "fontSize": 12,
+                  "color": "rgba(255,255,255,0.3)",
+                  "fontFamily": "Inter",
+                  "textAlign": "right"
+                }
+              },
+              {
+                "id": "widget-entity",
+                "type": "widget",
+                "widgetUuid": "seed-widget-entity-display006",
+                "position": { "x": 1400, "y": 140 },
+                "size": { "width": 450, "height": 200 },
+                "zIndex": 10,
+                "config": {
+                  "entityId": "",
+                  "showName": true,
+                  "showState": true,
+                  "showLastChanged": true
+                },
+                "styles": {
+                  "fontSize": 48,
+                  "fontFamily": "Inter",
+                  "textColor": "#ffffff",
+                  "backgroundColor": "rgba(255,255,255,0.05)",
+                  "borderRadius": 16
+                }
+              },
+              {
+                "id": "footer-text",
+                "type": "text",
+                "content": "If all widgets above are rendering correctly, the widget system is working! The Weather widget should show data from the api.db geocode cache.",
+                "position": { "x": 600, "y": 900 },
+                "size": { "width": 1200, "height": 60 },
+                "zIndex": 5,
+                "style": {
+                  "fontSize": 16,
+                  "color": "rgba(255,255,255,0.4)",
+                  "fontFamily": "Inter",
+                  "textAlign": "center"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
