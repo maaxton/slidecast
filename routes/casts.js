@@ -140,6 +140,37 @@ export default function createCastRoutes(deps) {
           }
           await widgetSecrets.setRaw(wid, key, value);
         }
+
+        // 2b) Register/deregister a "need" per secret field (secrets one-stop-shop
+        // Task 7) — the Variables & Secrets page surfaces an EMPTY widget secret
+        // field as "needed" until a value exists. Best-effort: a failure here must
+        // NEVER break the cast save.
+        if (widgetSecrets) {
+          for (const field of secretFields) {
+            const needKey = `widget:${wid}:${elementId}:${field}`;
+            try {
+              const wasWritten = writes.some((w) => w.key === needKey);
+              const origVal = element.widgetConfig ? element.widgetConfig[field] : undefined;
+              const isSharedPick = !!origVal && typeof origVal === 'object'
+                && typeof origVal.$secretSharedPick === 'string';
+              const isEmpty = !wasWritten && !isSharedPick
+                && (origVal === null || origVal === undefined || origVal === '');
+              if (isEmpty) {
+                await widgetSecrets.registerNeed(wid, needKey, {
+                  label: (schema[field] && schema[field].label) || field,
+                  description: schema[field] && schema[field].description,
+                });
+              } else {
+                // Filled (freshly entered, a shared pick, or an unchanged
+                // {$secret} ref from a prior save) — clear any stale need.
+                await widgetSecrets.deregisterNeed(wid, needKey);
+              }
+            } catch (err) {
+              logger.warn(`Secret intercept: failed to update need for widget ${wid} field ${field}: ${err.message}`);
+            }
+          }
+        }
+
         element.widgetConfig = stripped;
       }
     };

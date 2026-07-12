@@ -129,6 +129,40 @@ class WidgetSecretStore {
   async getRaw(widgetUuid, fullKey) {
     return this._require().getIsolatedSecret(widgetUuid, fullKey);
   }
+
+  /**
+   * Register a "need" for an ALREADY-fully-qualified kernel key (the
+   * element-scoped `widget:<wid>:<elementId>:<field>` key the Task 7 cast-save
+   * intercept computes for an EMPTY `type:'secret'` config field) — the
+   * Variables & Secrets page then surfaces it as "needed" until a value
+   * exists. Idempotent (upserts by key+owner).
+   * @param {string} widgetUuid
+   * @param {string} fullKey
+   * @param {{label?:string, description?:string}} [meta]
+   */
+  async registerNeed(widgetUuid, fullKey, meta = {}) {
+    return this._require().registerIsolatedNeed(widgetUuid, fullKey, meta);
+  }
+
+  /**
+   * Remove one registered need — the field was filled (entered plaintext, or a
+   * shared-secret pick), or now holds an unchanged `{$secret}` reference.
+   * @param {string} widgetUuid
+   * @param {string} fullKey
+   */
+  async deregisterNeed(widgetUuid, fullKey) {
+    return this._require().deregisterIsolatedNeed(widgetUuid, fullKey);
+  }
+
+  /**
+   * Remove EVERY need owned by this widget (`widget:<wid>`) — the
+   * widget-removal teardown, called alongside deleteAll() so no "needed" row
+   * survives a removed widget.
+   * @param {string} widgetUuid
+   */
+  async deregisterAllNeeds(widgetUuid) {
+    return this._require().deregisterIsolatedNeedsByOwner(widgetUuid);
+  }
 }
 
 export default WidgetSecretStore;

@@ -406,6 +406,10 @@ class WidgetRegistry {
       if (this.secretStore) {
         const removed = await this.secretStore.deleteAll(uuid);
         if (removed > 0) logger.debug(`Deleted ${removed} secrets for widget: ${existing.name}`);
+        // Clear every registered "need" for this widget too (secrets one-stop-shop
+        // Task 7) — otherwise a stale widget:<uuid> row lingers in the registry
+        // after the widget itself is gone.
+        await this.secretStore.deregisterAllNeeds(uuid);
       } else {
         logger.warn('WidgetRegistry has no secret store wired — skipping secret cleanup on widget removal');
       }
